@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Universal Video & Audio Converter</title>
+  
+  <!-- CDNJS Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.15/umd/ffmpeg.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #f3f4f6;
+      --card-bg: #ffffff;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --text: #111827;
+      --subtext: #6b7280;
+      --border: #d1d5db;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      width: 100%;
+      max-width: 520px;
+      padding: 30px;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-top: 0;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    p.subtitle {
+      color: var(--subtext);
+      font-size: 0.88rem;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+    }
+
+    input[type="file"], select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.95rem;
+      box-sizing: border-box;
+      background: #fafafa;
+    }
+
+    optgroup {
+      font-weight: bold;
+    }
+
+    button {
+      width: 100%;
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    button:hover:not(:disabled) {
+      background-color: var(--primary-hover);
+    }
+
+    button:disabled {
+      background-color: #a5b4fc;
+      cursor: not-allowed;
+    }
+
+    .status-box {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 6px;
+      background: #1e293b;
+      color: #38bdf8;
+      font-family: monospace;
+      font-size: 0.8rem;
+      display: none;
+      word-break: break-all;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Universal Converter</h1>
+    <p class="subtitle">Convert almost any video or audio format directly in your browser.</p>
+
+    <!-- File Input -->
+    <div class="form-group">
+      <label for="videoFile">Select Any Input File (.dat, .avi, .mkv, .mov, etc.)</label>
+      <input type="file" id="videoFile" accept="*/*" />
+    </div>
+
+    <!-- Comprehensive Output Format Selector -->
+    <div class="form-group">
+      <label for="targetFormat">Convert To Output Format</label>
+      <select id="targetFormat">
+        <optgroup label="Popular Video Formats">
+          <option value="mp4">MP4 (.mp4)</option>
+          <option value="webm">WebM (.webm)</option>
+          <option value="mkv">MKV / Matroska (.mkv)</option>
+          <option value="avi">AVI (.avi)</option>
+          <option value="mov">QuickTime MOV (.mov)</option>
+          <option value="wmv">Windows Media Video (.wmv)</option>
+          <option value="flv">Flash Video (.flv)</option>
+          <option value="3gp">3GP Mobile (.3gp)</option>
+          <option value="ogv">Ogg Video (.ogv)</option>
+          <option value="mpg">MPEG-1 / MPEG-2 (.mpg)</option>
+          <option value="ts">MPEG-TS Transport Stream (.ts)</option>
+          <option value="vob">DVD VOB (.vob)</option>
+          <option value="m4v">iTunes M4V (.m4v)</option>
+        </optgroup>
+
+        <optgroup label="Animated Formats">
+          <option value="gif">Animated GIF (.gif)</option>
+          <option value="webp">Animated WebP (.webp)</option>
+        </optgroup>
+
+        <optgroup label="Audio Extraction (Convert Video to Audio)">
+          <option value="mp3">MP3 Audio (.mp3)</option>
+          <option value="wav">WAV Uncompressed (.wav)</option>
+          <option value="aac">AAC Audio (.aac)</option>
+          <option value="m4a">M4A Audio (.m4a)</option>
+          <option value="ogg">Ogg Vorbis Audio (.ogg)</option>
+          <option value="flac">FLAC Lossless Audio (.flac)</option>
+          <option value="opus">Opus Audio (.opus)</option>
+          <option value="wma">Windows Media Audio (.wma)</option>
+          <option value="aiff">AIFF Audio (.aiff)</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <button id="convertBtn">Convert & Download</button>
+
+    <div id="statusBox" class="status-box"></div>
+  </div>
+
+  <script>
+    const { FFmpeg } = FFmpegWASM;
+    let ffmpeg = null;
+
+    const fileInput = document.getElementById('videoFile');
+    const formatSelect = document.getElementById('targetFormat');
+    const convertBtn = document.getElementById('convertBtn');
+    const statusBox = document.getElementById('statusBox');
+
+    function updateStatus(message) {
+      statusBox.style.display = 'block';
+      statusBox.innerText = message;
+      statusBox.scrollTop = statusBox.scrollHeight;
+    }
+
+    function getBaseFileName(fileName) {
+      const lastDotIndex = fileName.lastIndexOf('.');
+      if (lastDotIndex === -1) return fileName;
+      return fileName.substring(0, lastDotIndex);
+    }
+
+    function getMimeType(ext) {
+      const mimes = {
+        mp4: 'video/mp4', webm: 'video/webm', mkv: 'video/x-matroska',
+        avi: 'video/x-msvideo', mov: 'video/quicktime', wmv: 'video/x-ms-wmv',
+        flv: 'video/x-flv', '3gp': 'video/3gpp', ogv: 'video/ogg',
+        mpg: 'video/mpeg', ts: 'video/mp2t', vob: 'video/dvd', m4v: 'video/x-m4v',
+        gif: 'image/gif', webp: 'image/webp',
+        mp3: 'audio/mpeg', wav: 'audio/wav', aac: 'audio/aac', m4a: 'audio/mp4',
+        ogg: 'audio/ogg', flac: 'audio/flac', opus: 'audio/opus',
+        wma: 'audio/x-ms-wma', aiff: 'audio/aiff'
+      };
+      return mimes[ext] || 'application/octet-stream';
+    }
+
+    convertBtn.addEventListener('click', async () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        alert('Please select a video or audio file to convert!');
+        return;
+      }
+
+      const originalName = file.name;
+      const baseName = getBaseFileName(originalName);
+      const targetExt = formatSelect.value;
+      const outputFileName = `${baseName}.${targetExt}`;
+
+      try {
+        convertBtn.disabled = true;
+        updateStatus('Loading FFmpeg engine...');
+
+        if (!ffmpeg) {
+          ffmpeg = new FFmpeg();
+          
+          ffmpeg.on('log', ({ message }) => {
+            console.log(message);
+            if (message.includes('frame=') || message.includes('time=')) {
+              updateStatus(`Processing: ${message}`);
+            }
+          });
+
+          // Single-threaded core from cdnjs for maximum browser & GitHub Pages compatibility
+          await ffmpeg.load({
+            coreURL: "https://cdnjs.cloudflare.com/ajax/libs/ffmpeg-core/0.12.10/umd/ffmpeg-core.js",
+            wasmURL: "https://cdnjs.cloudflare.com/ajax/libs/ffmpeg-core/0.12.10/umd/ffmpeg-core.wasm"
+          });
+        }
+
+        updateStatus('Reading file into Virtual Filesystem...');
+        const arrayBuffer = await file.arrayBuffer();
+        await ffmpeg.writeFile('input_file', new Uint8Array(arrayBuffer));
+
+        updateStatus(`Converting "${originalName}" to .${targetExt}...`);
+
+        // Dynamically build smart arguments based on target format
+        let args = ['-i', 'input_file'];
+
+        const audioFormats = ['mp3', 'wav', 'aac', 'm4a', 'ogg', 'flac', 'opus', 'wma', 'aiff'];
+        const animatedFormats = ['gif', 'webp'];
+
+        if (audioFormats.includes(targetExt)) {
+          // Disable video stream for audio extraction
+          args.push('-vn');
+          if (targetExt === 'mp3') args.push('-acodec', 'libmp3lame');
+        } else if (animatedFormats.includes(targetExt)) {
+          // Optimize framerate and resolution for animated images
+          args.push('-vf', 'fps=12,scale=480:-1:flags=lanczos');
+        } else if (targetExt === 'mp4') {
+          // Standard MP4 encoding settings
+          args.push('-c:v', 'libx264', '-c:a', 'aac');
+        }
+
+        args.push(outputFileName);
+
+        // Execute conversion command
+        await ffmpeg.exec(args);
+
+        updateStatus('Conversion complete! Triggering download...');
+        const outputData = await ffmpeg.readFile(outputFileName);
+        const blob = new Blob([outputData.buffer], { type: getMimeType(targetExt) });
+
+        // Downloads as {original_filename}.{new_format_extension}
+        saveAs(blob, outputFileName);
+
+        updateStatus(`Successfully saved: ${outputFileName}`);
+
+        // Cleanup Virtual Memory
+        await ffmpeg.deleteFile('input_file');
+        await ffmpeg.deleteFile(outputFileName);
+
+      } catch (err) {
+        console.error(err);
+        updateStatus(`Conversion Error: ${err.message || err}`);
+      } finally {
+        convertBtn.disabled = false;
+      }
+    });
+  </script>
+
+</body>
+</html>
