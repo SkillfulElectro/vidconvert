@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VidConvert - Universal Video Converter</title>
   
-  <!-- CDN Libraries -->
-  <!-- FFmpeg bundle from jsDelivr (contains full .wasm support) -->
-  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/umd/ffmpeg.min.js"></script>
-  <!-- FileSaver.js from cdnjs -->
+  <!-- CDNJS Libraries -->
+  <!-- FFmpeg v0.11.6 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.11.6/ffmpeg.min.js"></script>
+  <!-- FileSaver.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
   <style>
@@ -16,28 +16,38 @@
     :root {
       --bg-color: #0f172a;
       --card-bg: #1e293b;
+      --card-item-bg: #0f172a;
       --primary: #6366f1;
       --primary-hover: #4f46e5;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
       --text: #f8fafc;
       --subtext: #94a3b8;
       --border: #334155;
       --input-bg: #0f172a;
       --status-bg: #0f172a;
       --status-text: #38bdf8;
+      --badge-bg: #312e81;
+      --badge-text: #c7d2fe;
     }
 
     /* Light Theme Override */
     [data-theme="light"] {
       --bg-color: #f3f4f6;
       --card-bg: #ffffff;
+      --card-item-bg: #f9fafb;
       --primary: #4f46e5;
       --primary-hover: #4338ca;
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
       --text: #111827;
       --subtext: #6b7280;
       --border: #d1d5db;
       --input-bg: #f9fafb;
       --status-bg: #1e293b;
       --status-text: #38bdf8;
+      --badge-bg: #e0e7ff;
+      --badge-text: #3730a3;
     }
 
     body {
@@ -58,7 +68,7 @@
       border-radius: 12px;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
       width: 100%;
-      max-width: 520px;
+      max-width: 560px;
       padding: 30px;
       box-sizing: border-box;
       position: relative;
@@ -132,7 +142,7 @@
       color: var(--text);
     }
 
-    button#convertBtn {
+    button.btn-primary {
       width: 100%;
       background-color: var(--primary);
       color: white;
@@ -145,11 +155,11 @@
       transition: background 0.2s ease;
     }
 
-    button#convertBtn:hover:not(:disabled) {
+    button.btn-primary:hover:not(:disabled) {
       background-color: var(--primary-hover);
     }
 
-    button#convertBtn:disabled {
+    button.btn-primary:disabled {
       background-color: #818cf8;
       opacity: 0.6;
       cursor: not-allowed;
@@ -168,6 +178,144 @@
       max-height: 120px;
       overflow-y: auto;
       border: 1px solid var(--border);
+    }
+
+    /* Downloads & History Section */
+    .history-section {
+      margin-top: 30px;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .history-header h2 {
+      font-size: 1.1rem;
+      margin: 0;
+    }
+
+    .btn-clear {
+      background: transparent;
+      border: none;
+      color: var(--danger);
+      font-size: 0.8rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .btn-clear:hover {
+      background-color: rgba(239, 68, 68, 0.1);
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .history-item {
+      background-color: var(--card-item-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .history-item-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .file-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      word-break: break-all;
+    }
+
+    .file-meta {
+      font-size: 0.75rem;
+      color: var(--subtext);
+      margin-top: 2px;
+    }
+
+    .format-badge {
+      background: var(--badge-bg);
+      color: var(--badge-text);
+      font-size: 0.7rem;
+      font-weight: bold;
+      padding: 3px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .media-preview {
+      width: 100%;
+      max-height: 200px;
+      border-radius: 6px;
+      background: #000;
+      margin-top: 4px;
+    }
+
+    .item-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .btn-action {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s ease;
+    }
+
+    .btn-download {
+      background-color: var(--primary);
+      color: white;
+    }
+
+    .btn-download:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-delete {
+      background-color: transparent;
+      border: 1px solid var(--border);
+      color: var(--subtext);
+      flex: 0 0 auto;
+    }
+
+    .btn-delete:hover {
+      color: var(--danger);
+      border-color: var(--danger);
+      background-color: rgba(239, 68, 68, 0.05);
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--subtext);
+      font-size: 0.85rem;
+      padding: 20px 0;
     }
   </style>
 </head>
@@ -229,13 +377,182 @@
       </select>
     </div>
 
-    <button id="convertBtn">Convert & Download</button>
+    <button id="convertBtn" class="btn-primary">Convert File</button>
 
     <div id="statusBox" class="status-box"></div>
+
+    <!-- Interactive Converted Files & Cache History -->
+    <div class="history-section">
+      <div class="history-header">
+        <h2>Converted Files (<span id="historyCount">0</span>)</h2>
+        <button id="clearAllBtn" class="btn-clear" style="display: none;">Clear Cache</button>
+      </div>
+      <div id="historyList" class="history-list">
+        <div class="empty-state">No converted files cached yet.</div>
+      </div>
+    </div>
+
   </div>
 
   <script>
-    // Theme Management (Defaults to Dark Theme)
+    // -------------------------------------------------------------
+    // 1. IndexedDB Persistent Storage (Browser Cache)
+    // -------------------------------------------------------------
+    const DB_NAME = 'VidConvertCacheDB';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'converted_files';
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+          }
+        };
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    async function saveToCache(item) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.put(item);
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    async function getAllCachedFiles() {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    async function deleteFromCache(id) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    async function clearAllCache() {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    // Utility: Format File Sizes
+    function formatBytes(bytes, decimals = 1) {
+      if (!bytes || bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    // -------------------------------------------------------------
+    // 2. Interactive Downloads UI Manager
+    // -------------------------------------------------------------
+    const historyList = document.getElementById('historyList');
+    const historyCount = document.getElementById('historyCount');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+
+    async function renderHistory() {
+      const cachedItems = await getAllCachedFiles();
+      historyList.innerHTML = '';
+      historyCount.innerText = cachedItems.length;
+
+      if (cachedItems.length === 0) {
+        historyList.innerHTML = '<div class="empty-state">No converted files cached yet.</div>';
+        clearAllBtn.style.display = 'none';
+        return;
+      }
+
+      clearAllBtn.style.display = 'inline-block';
+
+      // Sort newest first
+      cachedItems.sort((a, b) => b.timestamp - a.timestamp);
+
+      cachedItems.forEach(item => {
+        const blobUrl = URL.createObjectURL(item.blob);
+
+        const card = document.createElement('div');
+        card.className = 'history-item';
+
+        let previewHTML = '';
+        if (item.mimeType.startsWith('video/')) {
+          previewHTML = `<video class="media-preview" controls src="${blobUrl}"></video>`;
+        } else if (item.mimeType.startsWith('audio/')) {
+          previewHTML = `<audio class="media-preview" controls src="${blobUrl}"></audio>`;
+        } else if (item.mimeType.startsWith('image/')) {
+          previewHTML = `<img class="media-preview" src="${blobUrl}" style="object-fit: contain; max-height: 180px;" />`;
+        }
+
+        card.innerHTML = `
+          <div class="history-item-info">
+            <div>
+              <div class="file-name">${item.fileName}</div>
+              <div class="file-meta">${formatBytes(item.size)} • ${new Date(item.timestamp).toLocaleTimeString()}</div>
+            </div>
+            <span class="format-badge">${item.ext}</span>
+          </div>
+          ${previewHTML}
+          <div class="item-actions">
+            <button class="btn-action btn-download" data-id="${item.id}">
+              ⬇️ Download File
+            </button>
+            <button class="btn-action btn-delete" data-id="${item.id}" title="Remove from Cache">
+              🗑️
+            </button>
+          </div>
+        `;
+
+        // Download button action
+        card.querySelector('.btn-download').addEventListener('click', () => {
+          saveAs(item.blob, item.fileName);
+        });
+
+        // Delete item action
+        card.querySelector('.btn-delete').addEventListener('click', async () => {
+          await deleteFromCache(item.id);
+          URL.revokeObjectURL(blobUrl);
+          renderHistory();
+        });
+
+        historyList.appendChild(card);
+      });
+    }
+
+    clearAllBtn.addEventListener('click', async () => {
+      if (confirm('Are you sure you want to clear all cached conversions from browser storage?')) {
+        await clearAllCache();
+        renderHistory();
+      }
+    });
+
+    // -------------------------------------------------------------
+    // 3. Theme Toggle Management
+    // -------------------------------------------------------------
     const themeToggleBtn = document.getElementById('themeToggleBtn');
     const themeIcon = document.getElementById('themeIcon');
     const themeText = document.getElementById('themeText');
@@ -257,12 +574,13 @@
 
     themeToggleBtn.addEventListener('click', () => {
       const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-      applyTheme(newTheme);
+      applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
     });
 
-    // FFmpeg Conversion Logic
-    const { FFmpeg } = FFmpegWASM;
+    // -------------------------------------------------------------
+    // 4. FFmpeg Engine & Conversion Flow
+    // -------------------------------------------------------------
+    const { createFFmpeg, fetchFile } = FFmpeg;
     let ffmpeg = null;
 
     const fileInput = document.getElementById('videoFile');
@@ -274,17 +592,6 @@
       statusBox.style.display = 'block';
       statusBox.innerText = message;
       statusBox.scrollTop = statusBox.scrollHeight;
-    }
-
-    // Convert CDN files to Blob URLs to bypass browser WebWorker cross-origin rules
-    async function toBlobURL(url, mimeType) {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Failed to load script ${url}: ${response.statusText}`);
-      }
-      const buffer = await response.arrayBuffer();
-      const blob = new Blob([buffer], { type: mimeType });
-      return URL.createObjectURL(blob);
     }
 
     function getBaseFileName(fileName) {
@@ -324,31 +631,30 @@
         updateStatus('Loading FFmpeg engine...');
 
         if (!ffmpeg) {
-          ffmpeg = new FFmpeg();
-          
-          ffmpeg.on('log', ({ message }) => {
-            console.log(message);
-            if (message.includes('frame=') || message.includes('time=')) {
-              updateStatus(`Processing: ${message}`);
+          ffmpeg = createFFmpeg({
+            log: true,
+            corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+          });
+
+          ffmpeg.setProgress(({ ratio }) => {
+            const percent = Math.round(ratio * 100);
+            if (percent >= 0 && percent <= 100) {
+              updateStatus(`Converting: ${percent}% completed...`);
             }
           });
 
-          // jsDelivr CDN paths (hosting both JS and .wasm files)
-          const ffmpegCDN = "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/umd";
-          const coreCDN = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
-
-          updateStatus('Fetching WebAssembly binaries (~30MB)...');
-
-          await ffmpeg.load({
-            classWorkerURL: await toBlobURL(`${ffmpegCDN}/814.ffmpeg.js`, 'text/javascript'),
-            coreURL: await toBlobURL(`${coreCDN}/ffmpeg-core.js`, 'text/javascript'),
-            wasmURL: await toBlobURL(`${coreCDN}/ffmpeg-core.wasm`, 'application/wasm')
+          ffmpeg.setLogger(({ message }) => {
+            console.log(message);
           });
         }
 
-        updateStatus('Reading file into Virtual Memory...');
-        const arrayBuffer = await file.arrayBuffer();
-        await ffmpeg.writeFile('input_file', new Uint8Array(arrayBuffer));
+        if (!ffmpeg.isLoaded()) {
+          updateStatus('Downloading WebAssembly core (~25MB)...');
+          await ffmpeg.load();
+        }
+
+        updateStatus('Reading file into Virtual Filesystem...');
+        ffmpeg.FS('writeFile', 'input_file', await fetchFile(file));
 
         updateStatus(`Converting "${originalName}" to .${targetExt}...`);
 
@@ -368,19 +674,38 @@
 
         args.push(outputFileName);
 
-        await ffmpeg.exec(args);
+        // Run conversion
+        await ffmpeg.run(...args);
 
-        updateStatus('Conversion complete! Triggering download...');
-        const outputData = await ffmpeg.readFile(outputFileName);
-        const blob = new Blob([outputData.buffer], { type: getMimeType(targetExt) });
+        updateStatus('Conversion complete! Caching result...');
+        const outputData = ffmpeg.FS('readFile', outputFileName);
+        const mimeType = getMimeType(targetExt);
+        const blob = new Blob([outputData.buffer], { type: mimeType });
 
+        // Save conversion to IndexedDB Cache
+        const cacheItem = {
+          id: Date.now().toString(),
+          fileName: outputFileName,
+          ext: targetExt,
+          mimeType: mimeType,
+          size: blob.size,
+          blob: blob,
+          timestamp: Date.now()
+        };
+
+        await saveToCache(cacheItem);
+
+        // Auto trigger initial download
         saveAs(blob, outputFileName);
 
-        updateStatus(`Successfully saved: ${outputFileName}`);
+        updateStatus(`Successfully converted and cached: ${outputFileName}`);
 
-        // Cleanup Virtual FS
-        await ffmpeg.deleteFile('input_file');
-        await ffmpeg.deleteFile(outputFileName);
+        // Refresh History List UI
+        await renderHistory();
+
+        // Cleanup FFmpeg Virtual Memory
+        ffmpeg.FS('unlink', 'input_file');
+        ffmpeg.FS('unlink', outputFileName);
 
       } catch (err) {
         console.error(err);
@@ -389,6 +714,9 @@
         convertBtn.disabled = false;
       }
     });
+
+    // Initialize history on page load
+    renderHistory();
   </script>
 
 </body>
