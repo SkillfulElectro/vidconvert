@@ -1,16 +1,31 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Universal Video & Audio Converter</title>
+  <title>VidConvert - Universal Video Converter</title>
   
   <!-- CDNJS Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.15/umd/ffmpeg.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
   <style>
+    /* Default: Dark Theme */
     :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --text: #f8fafc;
+      --subtext: #94a3b8;
+      --border: #334155;
+      --input-bg: #0f172a;
+      --status-bg: #0f172a;
+      --status-text: #38bdf8;
+    }
+
+    /* Light Theme Override */
+    [data-theme="light"] {
       --bg-color: #f3f4f6;
       --card-bg: #ffffff;
       --primary: #4f46e5;
@@ -18,6 +33,9 @@
       --text: #111827;
       --subtext: #6b7280;
       --border: #d1d5db;
+      --input-bg: #f9fafb;
+      --status-bg: #1e293b;
+      --status-text: #38bdf8;
     }
 
     body {
@@ -30,29 +48,57 @@
       min-height: 100vh;
       margin: 0;
       padding: 20px;
+      transition: background-color 0.3s ease, color 0.3s ease;
     }
 
     .container {
       background: var(--card-bg);
       border-radius: 12px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
       width: 100%;
       max-width: 520px;
       padding: 30px;
       box-sizing: border-box;
+      position: relative;
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+      border: 1px solid var(--border);
+    }
+
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
     }
 
     h1 {
       font-size: 1.5rem;
-      margin-top: 0;
-      margin-bottom: 6px;
-      text-align: center;
+      margin: 0;
+    }
+
+    .theme-toggle-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: auto;
+      transition: all 0.2s ease;
+    }
+
+    .theme-toggle-btn:hover {
+      background-color: var(--border);
     }
 
     p.subtitle {
       color: var(--subtext);
       font-size: 0.88rem;
-      text-align: center;
+      margin-top: 4px;
       margin-bottom: 24px;
     }
 
@@ -74,14 +120,17 @@
       border-radius: 6px;
       font-size: 0.95rem;
       box-sizing: border-box;
-      background: #fafafa;
+      background-color: var(--input-bg);
+      color: var(--text);
+      transition: border-color 0.2s ease, background-color 0.3s ease;
     }
 
-    optgroup {
-      font-weight: bold;
+    option, optgroup {
+      background-color: var(--card-bg);
+      color: var(--text);
     }
 
-    button {
+    button#convertBtn {
       width: 100%;
       background-color: var(--primary);
       color: white;
@@ -94,12 +143,13 @@
       transition: background 0.2s ease;
     }
 
-    button:hover:not(:disabled) {
+    button#convertBtn:hover:not(:disabled) {
       background-color: var(--primary-hover);
     }
 
-    button:disabled {
-      background-color: #a5b4fc;
+    button#convertBtn:disabled {
+      background-color: #818cf8;
+      opacity: 0.6;
       cursor: not-allowed;
     }
 
@@ -107,21 +157,29 @@
       margin-top: 20px;
       padding: 12px;
       border-radius: 6px;
-      background: #1e293b;
-      color: #38bdf8;
+      background: var(--status-bg);
+      color: var(--status-text);
       font-family: monospace;
       font-size: 0.8rem;
       display: none;
       word-break: break-all;
       max-height: 120px;
       overflow-y: auto;
+      border: 1px solid var(--border);
     }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <h1>Universal Converter</h1>
+    <div class="header-bar">
+      <h1>VidConvert</h1>
+      <!-- Theme Toggle Button -->
+      <button id="themeToggleBtn" class="theme-toggle-btn" type="button" aria-label="Toggle theme">
+        <span id="themeIcon">☀️</span> <span id="themeText">Light</span>
+      </button>
+    </div>
+    
     <p class="subtitle">Convert almost any video or audio format directly in your browser.</p>
 
     <!-- File Input -->
@@ -130,7 +188,7 @@
       <input type="file" id="videoFile" accept="*/*" />
     </div>
 
-    <!-- Comprehensive Output Format Selector -->
+    <!-- Output Format Selector -->
     <div class="form-group">
       <label for="targetFormat">Convert To Output Format</label>
       <select id="targetFormat">
@@ -175,6 +233,34 @@
   </div>
 
   <script>
+    // Theme Management (Defaults to Dark Theme)
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const themeIcon = document.getElementById('themeIcon');
+    const themeText = document.getElementById('themeText');
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('vidconvert_theme', theme);
+      if (theme === 'dark') {
+        themeIcon.innerText = '☀️';
+        themeText.innerText = 'Light';
+      } else {
+        themeIcon.innerText = '🌙';
+        themeText.innerText = 'Dark';
+      }
+    }
+
+    // Load saved theme or default to 'dark'
+    const savedTheme = localStorage.getItem('vidconvert_theme') || 'dark';
+    applyTheme(savedTheme);
+
+    themeToggleBtn.addEventListener('click', () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      applyTheme(newTheme);
+    });
+
+    // FFmpeg Conversion Logic
     const { FFmpeg } = FFmpegWASM;
     let ffmpeg = null;
 
@@ -187,6 +273,13 @@
       statusBox.style.display = 'block';
       statusBox.innerText = message;
       statusBox.scrollTop = statusBox.scrollHeight;
+    }
+
+    async function toBlobURL(url, mimeType) {
+      const response = await fetch(url);
+      const buffer = await response.arrayBuffer();
+      const blob = new Blob([buffer], { type: mimeType });
+      return URL.createObjectURL(blob);
     }
 
     function getBaseFileName(fileName) {
@@ -235,52 +328,51 @@
             }
           });
 
-          // Single-threaded core from cdnjs for maximum browser & GitHub Pages compatibility
+          const ffmpegCDN = "https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.15/umd";
+          const coreCDN = "https://cdnjs.cloudflare.com/ajax/libs/ffmpeg-core/0.12.10/umd";
+
+          updateStatus('Fetching engine scripts safely...');
+
           await ffmpeg.load({
-            coreURL: "https://cdnjs.cloudflare.com/ajax/libs/ffmpeg-core/0.12.10/umd/ffmpeg-core.js",
-            wasmURL: "https://cdnjs.cloudflare.com/ajax/libs/ffmpeg-core/0.12.10/umd/ffmpeg-core.wasm"
+            classWorkerURL: await toBlobURL(`${ffmpegCDN}/814.ffmpeg.js`, 'text/javascript'),
+            coreURL: await toBlobURL(`${coreCDN}/ffmpeg-core.js`, 'text/javascript'),
+            wasmURL: await toBlobURL(`${coreCDN}/ffmpeg-core.wasm`, 'application/wasm')
           });
         }
 
-        updateStatus('Reading file into Virtual Filesystem...');
+        updateStatus('Reading file into Virtual Memory...');
         const arrayBuffer = await file.arrayBuffer();
         await ffmpeg.writeFile('input_file', new Uint8Array(arrayBuffer));
 
         updateStatus(`Converting "${originalName}" to .${targetExt}...`);
 
-        // Dynamically build smart arguments based on target format
         let args = ['-i', 'input_file'];
 
         const audioFormats = ['mp3', 'wav', 'aac', 'm4a', 'ogg', 'flac', 'opus', 'wma', 'aiff'];
         const animatedFormats = ['gif', 'webp'];
 
         if (audioFormats.includes(targetExt)) {
-          // Disable video stream for audio extraction
           args.push('-vn');
           if (targetExt === 'mp3') args.push('-acodec', 'libmp3lame');
         } else if (animatedFormats.includes(targetExt)) {
-          // Optimize framerate and resolution for animated images
           args.push('-vf', 'fps=12,scale=480:-1:flags=lanczos');
         } else if (targetExt === 'mp4') {
-          // Standard MP4 encoding settings
           args.push('-c:v', 'libx264', '-c:a', 'aac');
         }
 
         args.push(outputFileName);
 
-        // Execute conversion command
         await ffmpeg.exec(args);
 
         updateStatus('Conversion complete! Triggering download...');
         const outputData = await ffmpeg.readFile(outputFileName);
         const blob = new Blob([outputData.buffer], { type: getMimeType(targetExt) });
 
-        // Downloads as {original_filename}.{new_format_extension}
         saveAs(blob, outputFileName);
 
         updateStatus(`Successfully saved: ${outputFileName}`);
 
-        // Cleanup Virtual Memory
+        // Cleanup Virtual FS
         await ffmpeg.deleteFile('input_file');
         await ffmpeg.deleteFile(outputFileName);
 
