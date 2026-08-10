@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VidConvert - Universal Video Converter</title>
   
-  <!-- CDNJS Libraries -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.15/umd/ffmpeg.min.js"></script>
+  <!-- CDN Libraries -->
+  <!-- FFmpeg bundle from jsDelivr (contains full .wasm support) -->
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/umd/ffmpeg.min.js"></script>
+  <!-- FileSaver.js from cdnjs -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
   <style>
@@ -250,7 +252,6 @@
       }
     }
 
-    // Load saved theme or default to 'dark'
     const savedTheme = localStorage.getItem('vidconvert_theme') || 'dark';
     applyTheme(savedTheme);
 
@@ -275,8 +276,12 @@
       statusBox.scrollTop = statusBox.scrollHeight;
     }
 
+    // Convert CDN files to Blob URLs to bypass browser WebWorker cross-origin rules
     async function toBlobURL(url, mimeType) {
       const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to load script ${url}: ${response.statusText}`);
+      }
       const buffer = await response.arrayBuffer();
       const blob = new Blob([buffer], { type: mimeType });
       return URL.createObjectURL(blob);
@@ -328,10 +333,11 @@
             }
           });
 
-          const ffmpegCDN = "https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.15/umd";
-          const coreCDN = "https://cdnjs.cloudflare.com/ajax/libs/ffmpeg-core/0.12.10/umd";
+          // jsDelivr CDN paths (hosting both JS and .wasm files)
+          const ffmpegCDN = "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/umd";
+          const coreCDN = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
 
-          updateStatus('Fetching engine scripts safely...');
+          updateStatus('Fetching WebAssembly binaries (~30MB)...');
 
           await ffmpeg.load({
             classWorkerURL: await toBlobURL(`${ffmpegCDN}/814.ffmpeg.js`, 'text/javascript'),
