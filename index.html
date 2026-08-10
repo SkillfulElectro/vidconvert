@@ -682,10 +682,12 @@
         if (!ffmpeg) {
           updateStatus('Loading Same-Origin Multi-Threaded FFmpeg core...');
           
-          // Loads local ffmpeg-core.js and ffmpeg-core.worker.js from repository root
+          // Construct absolute HTTPS URL to prevent file:/// fallback error
+          const corePathURL = new URL('ffmpeg-core.js', window.location.href).href;
+
           ffmpeg = createFFmpeg({
             log: true,
-            corePath: './ffmpeg-core.js'
+            corePath: corePathURL
           });
 
           ffmpeg.setProgress(({ ratio }) => {
