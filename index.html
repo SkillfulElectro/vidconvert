@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-  <!-- Load same-origin Service Worker first -->
-  <script src="./coi-serviceworker.js"></script>
-
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VidConvert - Multi-Threaded Video Converter</title>
+  <title>VidConvert - Universal Video Converter</title>
   
   <!-- CDNJS Libraries -->
+  <!-- FFmpeg v0.11.6 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.11.6/ffmpeg.min.js"></script>
+  <!-- FileSaver.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
   <style>
@@ -33,6 +32,7 @@
       --accent-badge-text: #34d399;
     }
 
+    /* Light Theme Override */
     [data-theme="light"] {
       --bg-color: #f3f4f6;
       --card-bg: #ffffff;
@@ -203,6 +203,7 @@
       border: 1px solid var(--border);
     }
 
+    /* Downloads & History Section */
     .history-section {
       margin-top: 30px;
       border-top: 1px solid var(--border);
@@ -346,6 +347,7 @@
   <div class="container">
     <div class="header-bar">
       <h1>VidConvert</h1>
+      <!-- Theme Toggle Button -->
       <button id="themeToggleBtn" class="theme-toggle-btn" type="button" aria-label="Toggle theme">
         <span id="themeIcon">☀️</span> <span id="themeText">Light</span>
       </button>
@@ -353,7 +355,7 @@
     
     <div class="subtitle-container">
       <p class="subtitle">Convert video and audio formats locally in your browser.</p>
-      <span id="modeBadge" class="thread-badge">Checking CPU mode...</span>
+      <span class="thread-badge">⚡ WASM Engine Active</span>
     </div>
 
     <!-- File Input -->
@@ -405,7 +407,7 @@
 
     <div id="statusBox" class="status-box"></div>
 
-    <!-- Downloads & Cache Section -->
+    <!-- Interactive Converted Files & Cache History -->
     <div class="history-section">
       <div class="history-header">
         <h2>Converted Files (<span id="historyCount">0</span>)</h2>
@@ -420,21 +422,7 @@
 
   <script>
     // -------------------------------------------------------------
-    // 1. Threading Status Indicator
-    // -------------------------------------------------------------
-    const modeBadge = document.getElementById('modeBadge');
-    const isMultiThreaded = window.crossOriginIsolated;
-
-    if (isMultiThreaded) {
-      modeBadge.innerText = '🚀 Multi-Threaded CPU Active';
-    } else {
-      modeBadge.innerText = '⚡ Single-Threaded Mode';
-      modeBadge.style.background = '#854d0e';
-      modeBadge.style.color = '#fef08a';
-    }
-
-    // -------------------------------------------------------------
-    // 2. IndexedDB Cache Storage
+    // 1. IndexedDB Cache Storage
     // -------------------------------------------------------------
     const DB_NAME = 'VidConvertCacheDB';
     const DB_VERSION = 1;
@@ -525,7 +513,7 @@
     }
 
     // -------------------------------------------------------------
-    // 3. Downloads History UI Manager
+    // 2. Downloads History UI Manager
     // -------------------------------------------------------------
     const historyList = document.getElementById('historyList');
     const historyCount = document.getElementById('historyCount');
@@ -601,7 +589,7 @@
     });
 
     // -------------------------------------------------------------
-    // 4. Theme Toggle Management
+    // 3. Theme Toggle Management
     // -------------------------------------------------------------
     const themeToggleBtn = document.getElementById('themeToggleBtn');
     const themeIcon = document.getElementById('themeIcon');
@@ -628,7 +616,7 @@
     });
 
     // -------------------------------------------------------------
-    // 5. FFmpeg Engine Setup (Same-Origin Multi-Threaded Core)
+    // 4. Stable FFmpeg Engine Setup
     // -------------------------------------------------------------
     const { createFFmpeg, fetchFile } = FFmpeg;
     let ffmpeg = null;
@@ -678,16 +666,14 @@
 
       try {
         convertBtn.disabled = true;
+        updateStatus('Initializing FFmpeg engine...');
 
         if (!ffmpeg) {
-          updateStatus('Loading Same-Origin Multi-Threaded FFmpeg core...');
-          
-          // Construct absolute HTTPS URL to prevent file:/// fallback error
-          const corePathURL = new URL('ffmpeg-core.js', window.location.href).href;
-
+          // HTTPS CDN URL prevents file:/// relative path bugs
           ffmpeg = createFFmpeg({
             log: true,
-            corePath: corePathURL
+            corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core-st@0.11.1/dist/ffmpeg-core.js',
+            mainName: 'main'
           });
 
           ffmpeg.setProgress(({ ratio }) => {
@@ -703,11 +689,11 @@
         }
 
         if (!ffmpeg.isLoaded()) {
-          updateStatus('Loading WebAssembly core binaries...');
+          updateStatus('Downloading WebAssembly engine (~25MB)...');
           await ffmpeg.load();
         }
 
-        updateStatus(`Reading "${originalName}" into virtual memory...`);
+        updateStatus(`Reading "${originalName}" into browser virtual memory...`);
         ffmpeg.FS('writeFile', 'input_file', await fetchFile(file));
 
         updateStatus(`Converting "${originalName}" to .${targetExt}...`);
@@ -736,6 +722,7 @@
         const mimeType = getMimeType(targetExt);
         const blob = new Blob([outputData.buffer], { type: mimeType });
 
+        // Cache item
         const cacheItem = {
           id: Date.now().toString(),
           fileName: outputFileName,
@@ -748,13 +735,15 @@
 
         await saveToCache(cacheItem);
 
-        // Trigger download
+        // Download output file
         saveAs(blob, outputFileName);
 
         updateStatus(`Successfully converted and saved: ${outputFileName}`);
 
+        // Refresh UI history
         await renderHistory();
 
+        // Virtual FS Cleanup
         try {
           ffmpeg.FS('unlink', 'input_file');
           ffmpeg.FS('unlink', outputFileName);
@@ -771,6 +760,7 @@
       }
     });
 
+    // Initialize history on load
     renderHistory();
   </script>
 
