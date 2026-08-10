@@ -5,7 +5,7 @@ let coi = {
   coepCredentialless: () => true,
   doReload: () => true,
   quiet: false,
-  ...window.coi
+  ...(typeof window !== 'undefined' ? window.coi : {})
 };
 
 if (typeof window === 'undefined') {
