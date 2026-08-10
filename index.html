@@ -460,7 +460,6 @@
       });
     }
 
-    // Utility: Format File Sizes
     function formatBytes(bytes, decimals = 1) {
       if (!bytes || bytes === 0) return '0 Bytes';
       const k = 1024;
@@ -490,7 +489,6 @@
 
       clearAllBtn.style.display = 'inline-block';
 
-      // Sort newest first
       cachedItems.sort((a, b) => b.timestamp - a.timestamp);
 
       cachedItems.forEach(item => {
@@ -527,12 +525,10 @@
           </div>
         `;
 
-        // Download button action
         card.querySelector('.btn-download').addEventListener('click', () => {
           saveAs(item.blob, item.fileName);
         });
 
-        // Delete item action
         card.querySelector('.btn-delete').addEventListener('click', async () => {
           await deleteFromCache(item.id);
           URL.revokeObjectURL(blobUrl);
@@ -578,7 +574,7 @@
     });
 
     // -------------------------------------------------------------
-    // 4. FFmpeg Engine & Conversion Flow
+    // 4. Single-Threaded FFmpeg Engine & Conversion Flow
     // -------------------------------------------------------------
     const { createFFmpeg, fetchFile } = FFmpeg;
     let ffmpeg = null;
@@ -628,12 +624,14 @@
 
       try {
         convertBtn.disabled = true;
-        updateStatus('Loading FFmpeg engine...');
+        updateStatus('Loading FFmpeg single-threaded engine...');
 
+        // Initialize single-threaded corePath to eliminate SharedArrayBuffer errors
         if (!ffmpeg) {
           ffmpeg = createFFmpeg({
             log: true,
-            corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+            corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core-st@0.11.1/dist/ffmpeg-core.js',
+            mainName: 'main'
           });
 
           ffmpeg.setProgress(({ ratio }) => {
@@ -695,7 +693,7 @@
 
         await saveToCache(cacheItem);
 
-        // Auto trigger initial download
+        // Trigger initial download
         saveAs(blob, outputFileName);
 
         updateStatus(`Successfully converted and cached: ${outputFileName}`);
@@ -715,7 +713,7 @@
       }
     });
 
-    // Initialize history on page load
+    // Load cached conversions on page load
     renderHistory();
   </script>
 
