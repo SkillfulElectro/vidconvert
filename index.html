@@ -1,9 +1,13 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
+  <!-- 1. coi-serviceworker: MUST be the first script in <head> -->
+  <!-- Injects COOP/COEP headers to enable SharedArrayBuffer & Multi-Threading on GitHub Pages -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/coi-serviceworker/0.1.7/coi-serviceworker.min.js"></script>
+
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VidConvert - Universal Video Converter</title>
+  <title>VidConvert - Multi-Threaded Universal Video Converter</title>
   
   <!-- CDNJS Libraries -->
   <!-- FFmpeg v0.11.6 -->
@@ -29,6 +33,8 @@
       --status-text: #38bdf8;
       --badge-bg: #312e81;
       --badge-text: #c7d2fe;
+      --accent-badge-bg: #065f46;
+      --accent-badge-text: #34d399;
     }
 
     /* Light Theme Override */
@@ -48,6 +54,8 @@
       --status-text: #38bdf8;
       --badge-bg: #e0e7ff;
       --badge-text: #3730a3;
+      --accent-badge-bg: #d1fae5;
+      --accent-badge-text: #065f46;
     }
 
     body {
@@ -107,11 +115,32 @@
       background-color: var(--border);
     }
 
+    .subtitle-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 4px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
     p.subtitle {
       color: var(--subtext);
       font-size: 0.88rem;
-      margin-top: 4px;
-      margin-bottom: 24px;
+      margin: 0;
+    }
+
+    .thread-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: var(--accent-badge-bg);
+      color: var(--accent-badge-text);
+      padding: 4px 8px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
     .form-group {
@@ -330,7 +359,11 @@
       </button>
     </div>
     
-    <p class="subtitle">Convert almost any video or audio format directly in your browser.</p>
+    <div class="subtitle-container">
+      <p class="subtitle">Convert almost any video or audio format directly in your browser.</p>
+      <!-- Mode Badge (Multi-Threaded / Single-Threaded indicator) -->
+      <span id="modeBadge" class="thread-badge">Checking CPU mode...</span>
+    </div>
 
     <!-- File Input -->
     <div class="form-group">
@@ -396,7 +429,21 @@
 
   <script>
     // -------------------------------------------------------------
-    // 1. IndexedDB Persistent Storage (Browser Cache)
+    // 1. Check Multi-Threading Capability (window.crossOriginIsolated)
+    // -------------------------------------------------------------
+    const modeBadge = document.getElementById('modeBadge');
+    const isMultiThreaded = window.crossOriginIsolated;
+
+    if (isMultiThreaded) {
+      modeBadge.innerText = '🚀 Multi-Threaded Core Active';
+    } else {
+      modeBadge.innerText = '⚡ Single-Threaded Mode';
+      modeBadge.style.background = '#854d0e';
+      modeBadge.style.color = '#fef08a';
+    }
+
+    // -------------------------------------------------------------
+    // 2. IndexedDB Persistent Storage (Browser Cache)
     // -------------------------------------------------------------
     const DB_NAME = 'VidConvertCacheDB';
     const DB_VERSION = 1;
@@ -470,7 +517,7 @@
     }
 
     // -------------------------------------------------------------
-    // 2. Interactive Downloads UI Manager
+    // 3. Interactive Downloads UI Manager
     // -------------------------------------------------------------
     const historyList = document.getElementById('historyList');
     const historyCount = document.getElementById('historyCount');
@@ -547,7 +594,7 @@
     });
 
     // -------------------------------------------------------------
-    // 3. Theme Toggle Management
+    // 4. Theme Toggle Management
     // -------------------------------------------------------------
     const themeToggleBtn = document.getElementById('themeToggleBtn');
     const themeIcon = document.getElementById('themeIcon');
@@ -574,7 +621,7 @@
     });
 
     // -------------------------------------------------------------
-    // 4. Single-Threaded FFmpeg Engine & Conversion Flow
+    // 5. FFmpeg Engine Setup (Multi-Threaded / Single-Threaded Adaptive)
     // -------------------------------------------------------------
     const { createFFmpeg, fetchFile } = FFmpeg;
     let ffmpeg = null;
@@ -618,104 +665,4 @@
       }
 
       const originalName = file.name;
-      const baseName = getBaseFileName(originalName);
-      const targetExt = formatSelect.value;
-      const outputFileName = `${baseName}.${targetExt}`;
-
-      try {
-        convertBtn.disabled = true;
-        updateStatus('Loading FFmpeg single-threaded engine...');
-
-        // Initialize single-threaded corePath to eliminate SharedArrayBuffer errors
-        if (!ffmpeg) {
-          ffmpeg = createFFmpeg({
-            log: true,
-            corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core-st@0.11.1/dist/ffmpeg-core.js',
-            mainName: 'main'
-          });
-
-          ffmpeg.setProgress(({ ratio }) => {
-            const percent = Math.round(ratio * 100);
-            if (percent >= 0 && percent <= 100) {
-              updateStatus(`Converting: ${percent}% completed...`);
-            }
-          });
-
-          ffmpeg.setLogger(({ message }) => {
-            console.log(message);
-          });
-        }
-
-        if (!ffmpeg.isLoaded()) {
-          updateStatus('Downloading WebAssembly core (~25MB)...');
-          await ffmpeg.load();
-        }
-
-        updateStatus('Reading file into Virtual Filesystem...');
-        ffmpeg.FS('writeFile', 'input_file', await fetchFile(file));
-
-        updateStatus(`Converting "${originalName}" to .${targetExt}...`);
-
-        let args = ['-i', 'input_file'];
-
-        const audioFormats = ['mp3', 'wav', 'aac', 'm4a', 'ogg', 'flac', 'opus', 'wma', 'aiff'];
-        const animatedFormats = ['gif', 'webp'];
-
-        if (audioFormats.includes(targetExt)) {
-          args.push('-vn');
-          if (targetExt === 'mp3') args.push('-acodec', 'libmp3lame');
-        } else if (animatedFormats.includes(targetExt)) {
-          args.push('-vf', 'fps=12,scale=480:-1:flags=lanczos');
-        } else if (targetExt === 'mp4') {
-          args.push('-c:v', 'libx264', '-c:a', 'aac');
-        }
-
-        args.push(outputFileName);
-
-        // Run conversion
-        await ffmpeg.run(...args);
-
-        updateStatus('Conversion complete! Caching result...');
-        const outputData = ffmpeg.FS('readFile', outputFileName);
-        const mimeType = getMimeType(targetExt);
-        const blob = new Blob([outputData.buffer], { type: mimeType });
-
-        // Save conversion to IndexedDB Cache
-        const cacheItem = {
-          id: Date.now().toString(),
-          fileName: outputFileName,
-          ext: targetExt,
-          mimeType: mimeType,
-          size: blob.size,
-          blob: blob,
-          timestamp: Date.now()
-        };
-
-        await saveToCache(cacheItem);
-
-        // Trigger initial download
-        saveAs(blob, outputFileName);
-
-        updateStatus(`Successfully converted and cached: ${outputFileName}`);
-
-        // Refresh History List UI
-        await renderHistory();
-
-        // Cleanup FFmpeg Virtual Memory
-        ffmpeg.FS('unlink', 'input_file');
-        ffmpeg.FS('unlink', outputFileName);
-
-      } catch (err) {
-        console.error(err);
-        updateStatus(`Conversion Error: ${err.message || err}`);
-      } finally {
-        convertBtn.disabled = false;
-      }
-    });
-
-    // Load cached conversions on page load
-    renderHistory();
-  </script>
-
-</body>
-</html>
+      const baseName = getBaseFile
