@@ -53,18 +53,19 @@ VidConvert reads binary headers directly, so it automatically supports virtually
     click Save.
 5.  Your app will be live at https://<your-username>.github.io/vidconvert/!
 
-💻 Running Locally
+### 💻 Running Locally
 
 Because VidConvert uses WebAssembly loaded via CDNJS, you don't need Node.js or
 any build steps. Simply serve the directory with a local HTTP server:
 
 Using Python:
-
+```bash
 python3 -m http.server 8000
+```
 
 Then open http://localhost:8000 in your web browser.
 
-⚠️ Notes & Limitations
+## ⚠️ Notes & Limitations
 
   - Memory Usage: Because conversion runs in WebAssembly, browser memory limits
     apply (usually up to 2–4 GB depending on your device). Very large video
@@ -72,7 +73,7 @@ Then open http://localhost:8000 in your web browser.
   - Conversion Speed: Browser-based transcoding speed depends on your device's
     CPU performance.
 
-📄 License
+## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for
 details.
