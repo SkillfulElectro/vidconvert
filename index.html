@@ -1,18 +1,15 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-  <!-- 1. coi-serviceworker: MUST be the first script in <head> -->
-  <!-- Injects COOP/COEP headers to enable SharedArrayBuffer & Multi-Threading on GitHub Pages -->
-  <script src="coi-serviceworker.js"></script>
+  <!-- Load same-origin Service Worker first -->
+  <script src="./coi-serviceworker.js"></script>
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VidConvert - Multi-Threaded Universal Video Converter</title>
+  <title>VidConvert - Multi-Threaded Video Converter</title>
   
   <!-- CDNJS Libraries -->
-  <!-- FFmpeg v0.11.6 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.11.6/ffmpeg.min.js"></script>
-  <!-- FileSaver.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
   <style>
@@ -24,7 +21,6 @@
       --primary: #6366f1;
       --primary-hover: #4f46e5;
       --danger: #ef4444;
-      --danger-hover: #dc2626;
       --text: #f8fafc;
       --subtext: #94a3b8;
       --border: #334155;
@@ -37,7 +33,6 @@
       --accent-badge-text: #34d399;
     }
 
-    /* Light Theme Override */
     [data-theme="light"] {
       --bg-color: #f3f4f6;
       --card-bg: #ffffff;
@@ -45,7 +40,6 @@
       --primary: #4f46e5;
       --primary-hover: #4338ca;
       --danger: #dc2626;
-      --danger-hover: #b91c1c;
       --text: #111827;
       --subtext: #6b7280;
       --border: #d1d5db;
@@ -204,12 +198,11 @@
       font-size: 0.8rem;
       display: none;
       word-break: break-all;
-      max-height: 120px;
+      max-height: 140px;
       overflow-y: auto;
       border: 1px solid var(--border);
     }
 
-    /* Downloads & History Section */
     .history-section {
       margin-top: 30px;
       border-top: 1px solid var(--border);
@@ -353,21 +346,19 @@
   <div class="container">
     <div class="header-bar">
       <h1>VidConvert</h1>
-      <!-- Theme Toggle Button -->
       <button id="themeToggleBtn" class="theme-toggle-btn" type="button" aria-label="Toggle theme">
         <span id="themeIcon">☀️</span> <span id="themeText">Light</span>
       </button>
     </div>
     
     <div class="subtitle-container">
-      <p class="subtitle">Convert almost any video or audio format directly in your browser.</p>
-      <!-- Mode Badge (Multi-Threaded / Single-Threaded indicator) -->
+      <p class="subtitle">Convert video and audio formats locally in your browser.</p>
       <span id="modeBadge" class="thread-badge">Checking CPU mode...</span>
     </div>
 
     <!-- File Input -->
     <div class="form-group">
-      <label for="videoFile">Select Any Input File (.dat, .avi, .mkv, .mov, etc.)</label>
+      <label for="videoFile">Select Any File (.dat, .avi, .mkv, .mov, .flv, etc.)</label>
       <input type="file" id="videoFile" accept="*/*" />
     </div>
 
@@ -396,7 +387,7 @@
           <option value="webp">Animated WebP (.webp)</option>
         </optgroup>
 
-        <optgroup label="Audio Extraction (Convert Video to Audio)">
+        <optgroup label="Audio Extraction">
           <option value="mp3">MP3 Audio (.mp3)</option>
           <option value="wav">WAV Uncompressed (.wav)</option>
           <option value="aac">AAC Audio (.aac)</option>
@@ -414,7 +405,7 @@
 
     <div id="statusBox" class="status-box"></div>
 
-    <!-- Interactive Converted Files & Cache History -->
+    <!-- Downloads & Cache Section -->
     <div class="history-section">
       <div class="history-header">
         <h2>Converted Files (<span id="historyCount">0</span>)</h2>
@@ -429,13 +420,13 @@
 
   <script>
     // -------------------------------------------------------------
-    // 1. Check Multi-Threading Capability (window.crossOriginIsolated)
+    // 1. Threading Status Indicator
     // -------------------------------------------------------------
     const modeBadge = document.getElementById('modeBadge');
     const isMultiThreaded = window.crossOriginIsolated;
 
     if (isMultiThreaded) {
-      modeBadge.innerText = '🚀 Multi-Threaded Core Active';
+      modeBadge.innerText = '🚀 Multi-Threaded CPU Active';
     } else {
       modeBadge.innerText = '⚡ Single-Threaded Mode';
       modeBadge.style.background = '#854d0e';
@@ -443,7 +434,7 @@
     }
 
     // -------------------------------------------------------------
-    // 2. IndexedDB Persistent Storage (Browser Cache)
+    // 2. IndexedDB Cache Storage
     // -------------------------------------------------------------
     const DB_NAME = 'VidConvertCacheDB';
     const DB_VERSION = 1;
@@ -464,47 +455,64 @@
     }
 
     async function saveToCache(item) {
-      const db = await openDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.put(item);
-        tx.oncomplete = () => resolve();
-        tx.onerror = (e) => reject(e.target.error);
-      });
+      try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          store.put(item);
+          tx.oncomplete = () => resolve();
+          tx.onerror = (e) => reject(e.target.error);
+        });
+      } catch (err) {
+        console.warn('IndexedDB Save Error:', err);
+      }
     }
 
     async function getAllCachedFiles() {
-      const db = await openDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const store = tx.objectStore(STORE_NAME);
-        const request = store.getAll();
-        request.onsuccess = () => resolve(request.result || []);
-        request.onerror = (e) => reject(e.target.error);
-      });
+      try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const store = tx.objectStore(STORE_NAME);
+          const request = store.getAll();
+          request.onsuccess = () => resolve(request.result || []);
+          request.onerror = (e) => reject(e.target.error);
+        });
+      } catch (err) {
+        console.warn('IndexedDB Read Error:', err);
+        return [];
+      }
     }
 
     async function deleteFromCache(id) {
-      const db = await openDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.delete(id);
-        tx.oncomplete = () => resolve();
-        tx.onerror = (e) => reject(e.target.error);
-      });
+      try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          store.delete(id);
+          tx.oncomplete = () => resolve();
+          tx.onerror = (e) => reject(e.target.error);
+        });
+      } catch (err) {
+        console.warn('IndexedDB Delete Error:', err);
+      }
     }
 
     async function clearAllCache() {
-      const db = await openDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.clear();
-        tx.oncomplete = () => resolve();
-        tx.onerror = (e) => reject(e.target.error);
-      });
+      try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          store.clear();
+          tx.oncomplete = () => resolve();
+          tx.onerror = (e) => reject(e.target.error);
+        });
+      } catch (err) {
+        console.warn('IndexedDB Clear Error:', err);
+      }
     }
 
     function formatBytes(bytes, decimals = 1) {
@@ -517,7 +525,7 @@
     }
 
     // -------------------------------------------------------------
-    // 3. Interactive Downloads UI Manager
+    // 3. Downloads History UI Manager
     // -------------------------------------------------------------
     const historyList = document.getElementById('historyList');
     const historyCount = document.getElementById('historyCount');
@@ -535,7 +543,6 @@
       }
 
       clearAllBtn.style.display = 'inline-block';
-
       cachedItems.sort((a, b) => b.timestamp - a.timestamp);
 
       cachedItems.forEach(item => {
@@ -621,7 +628,7 @@
     });
 
     // -------------------------------------------------------------
-    // 5. FFmpeg Engine Setup (Multi-Threaded / Single-Threaded Adaptive)
+    // 5. FFmpeg Engine Setup (Same-Origin Multi-Threaded Core)
     // -------------------------------------------------------------
     const { createFFmpeg, fetchFile } = FFmpeg;
     let ffmpeg = null;
@@ -665,4 +672,105 @@
       }
 
       const originalName = file.name;
-      const baseName = getBaseFile
+      const baseName = getBaseFileName(originalName);
+      const targetExt = formatSelect.value;
+      const outputFileName = `${baseName}.${targetExt}`;
+
+      try {
+        convertBtn.disabled = true;
+
+        if (!ffmpeg) {
+          updateStatus('Loading Same-Origin Multi-Threaded FFmpeg core...');
+          
+          // Loads local ffmpeg-core.js and ffmpeg-core.worker.js from repository root
+          ffmpeg = createFFmpeg({
+            log: true,
+            corePath: './ffmpeg-core.js'
+          });
+
+          ffmpeg.setProgress(({ ratio }) => {
+            const percent = Math.round(ratio * 100);
+            if (percent >= 0 && percent <= 100) {
+              updateStatus(`Converting: ${percent}% completed...`);
+            }
+          });
+
+          ffmpeg.setLogger(({ message }) => {
+            console.log(message);
+          });
+        }
+
+        if (!ffmpeg.isLoaded()) {
+          updateStatus('Loading WebAssembly core binaries...');
+          await ffmpeg.load();
+        }
+
+        updateStatus(`Reading "${originalName}" into virtual memory...`);
+        ffmpeg.FS('writeFile', 'input_file', await fetchFile(file));
+
+        updateStatus(`Converting "${originalName}" to .${targetExt}...`);
+
+        let args = ['-i', 'input_file'];
+
+        const audioFormats = ['mp3', 'wav', 'aac', 'm4a', 'ogg', 'flac', 'opus', 'wma', 'aiff'];
+        const animatedFormats = ['gif', 'webp'];
+
+        if (audioFormats.includes(targetExt)) {
+          args.push('-vn');
+          if (targetExt === 'mp3') args.push('-acodec', 'libmp3lame');
+        } else if (animatedFormats.includes(targetExt)) {
+          args.push('-vf', 'fps=12,scale=480:-1:flags=lanczos');
+        } else if (targetExt === 'mp4') {
+          args.push('-c:v', 'libx264', '-c:a', 'aac');
+        }
+
+        args.push(outputFileName);
+
+        // Execute conversion
+        await ffmpeg.run(...args);
+
+        updateStatus('Conversion complete! Caching result...');
+        const outputData = ffmpeg.FS('readFile', outputFileName);
+        const mimeType = getMimeType(targetExt);
+        const blob = new Blob([outputData.buffer], { type: mimeType });
+
+        const cacheItem = {
+          id: Date.now().toString(),
+          fileName: outputFileName,
+          ext: targetExt,
+          mimeType: mimeType,
+          size: blob.size,
+          blob: blob,
+          timestamp: Date.now()
+        };
+
+        await saveToCache(cacheItem);
+
+        // Trigger download
+        saveAs(blob, outputFileName);
+
+        updateStatus(`Successfully converted and saved: ${outputFileName}`);
+
+        await renderHistory();
+
+        try {
+          ffmpeg.FS('unlink', 'input_file');
+          ffmpeg.FS('unlink', outputFileName);
+        } catch (e) {
+          console.log('Cleanup info:', e);
+        }
+
+      } catch (err) {
+        console.error('Conversion Failed:', err);
+        updateStatus(`Conversion Failed: ${err.message || err}`);
+        alert(`Conversion Error: ${err.message || err}`);
+      } finally {
+        convertBtn.disabled = false;
+      }
+    });
+
+    renderHistory();
+  </script>
+
+</body>
+</html>
